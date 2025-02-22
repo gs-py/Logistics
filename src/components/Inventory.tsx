@@ -71,13 +71,8 @@ const AdminInventoryTab = () => {
                 </span>
                 {item.status}
               </TableCell>
-              <TableCell className="text-right">
-                <Button
-                  variant="destructive"
-                  onClick={() => handleDelete(item.id)}
-                >
-                  Edit
-                </Button>
+              <TableCell className="text-right contex">
+                <Button onClick={() => handleDelete(item.id)}>Edit</Button>
                 <Button
                   variant="destructive"
                   onClick={() => handleDelete(item.id)}

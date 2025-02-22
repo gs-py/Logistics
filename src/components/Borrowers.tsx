@@ -1,19 +1,16 @@
 import React, { FormEventHandler, useEffect, useState } from "react";
 import supabase from "@/service/supabase";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
 import { toast } from "react-hot-toast";
-import { MdPlusOne, MdSearch } from "react-icons/md";
+import { MdSearch } from "react-icons/md";
 import { ScrollArea } from "./ui/scroll-area";
 
 const Students = () => {
