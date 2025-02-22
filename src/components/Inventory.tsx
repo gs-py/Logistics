@@ -50,7 +50,7 @@ const AdminInventoryTab = () => {
     <ScrollArea className="h-[80vh] w-[100%]">
       <Table className="text-white ">
         <TableHeader>
-          <TableRow className="bg-gray-500">
+          <TableRow className="">
             <TableHead className="w-[100px]">ID</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Quantity</TableHead>
