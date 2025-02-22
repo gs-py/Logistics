@@ -71,13 +71,13 @@ const AdminInventoryTab = () => {
                 </span>
                 {item.status}
               </TableCell>
-              <TableCell className="text-right contex">
+              <TableCell className="text-right content-center">
                 <Button onClick={() => handleDelete(item.id)}>Edit</Button>
                 <Button
-                  variant="destructive"
                   onClick={() => handleDelete(item.id)}
+                  className="bg-white"
                 >
-                  <MdDelete className="text-red-600" />
+                  <MdDelete className="text-red-600 " />
                 </Button>
               </TableCell>
             </TableRow>
