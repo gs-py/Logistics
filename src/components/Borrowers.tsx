@@ -57,7 +57,7 @@ const Students = () => {
       <ScrollArea className="h-[67vh]">
         {" "}
         <Table className="text-white px-1">
-          <TableHeader className="bg-gray-500 text-black">
+          <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
