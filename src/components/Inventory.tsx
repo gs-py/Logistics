@@ -71,7 +71,7 @@ const AdminInventoryTab = () => {
                 </span>
                 {item.status}
               </TableCell>
-              <TableCell className="text-right content-center flex items-center justify-center gap-1">
+              <TableCell className="text-right  flex items-center  justify-end  gap-1">
                 <Button onClick={() => handleDelete(item.id)}>Edit</Button>
                 <Button
                   onClick={() => handleDelete(item.id)}
