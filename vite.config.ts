@@ -6,8 +6,6 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   
-  // ✅ Set the correct base path for GitHub Pages
-  base: "/Logistics/",  // 🔥 Replace with your actual repo name
 
   resolve: {
     alias: {
