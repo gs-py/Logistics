@@ -83,22 +83,21 @@ const BorrowItem = () => {
   };
 
   return (
-    <div className="bg-white p-3  rounded-lg">
-      <h2 className="text-xl font-bold mb-4">Borrow an Item</h2>
+    <div className="bg-gray-800  p-3  rounded-lg w-[70vw]">
+      <h2 className="text-xl font-bold mb-4 text-white">Borrow an Item</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Borrower Selection with Search */}
         <Select
           onValueChange={(value) => setForm({ ...form, borrower_id: value })}
         >
-          <SelectTrigger>
+          <SelectTrigger className="text-white/70">
             <SelectValue placeholder="Select Borrower" />
           </SelectTrigger>
-          <SelectContent className="bg-gray-200 text-black p-2">
+          <SelectContent className="bg-gray-200 text-black">
             <Input
               placeholder="Search Borrower..."
               value={searchTerm}
               onChange={handleSearch}
-              className="w-full px-2 py-1 mb-2"
+              className="w-full px-2 py-1 mb-2 text-black"
             />
             {filteredBorrowers.length > 0 ? (
               filteredBorrowers.map((b) => (
@@ -116,7 +115,7 @@ const BorrowItem = () => {
         <Select
           onValueChange={(value) => setForm({ ...form, inventory_id: value })}
         >
-          <SelectTrigger>
+          <SelectTrigger className="text-white/70">
             <SelectValue placeholder="Select Item" />
           </SelectTrigger>
           <SelectContent className="bg-white text-black">
@@ -129,6 +128,7 @@ const BorrowItem = () => {
         </Select>
 
         <Input
+          className="text-white/70"
           type="date"
           value={form.return_date}
           onChange={(e) => setForm({ ...form, return_date: e.target.value })}

@@ -5,6 +5,7 @@ import {
   Users as UsersIcon,
   BarChart3,
 } from "lucide-react";
+import { GrTransaction } from "react-icons/gr";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
 import Inventory from "./components/Inventory";
@@ -13,6 +14,7 @@ import Reports from "./components/Reports";
 import Students from "./components/Borrowers";
 import BorrowItem from "./components/AddItem";
 import Transactions from "./components/Transaction";
+import { MdAddBox } from "react-icons/md";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -106,7 +108,7 @@ function App() {
                     : " hover:bg-gray-400"
                 }`}
               >
-                <Shield size={20} />
+                <MdAddBox size={20} />
                 Add Item
               </button>
 
@@ -118,7 +120,7 @@ function App() {
                     : "  hover:bg-gray-400"
                 }`}
               >
-                <BarChart3 size={20} />
+                <GrTransaction size={20} />
                 Transactions
               </button>
               <button
