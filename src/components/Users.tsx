@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import supabase from "@/service/supabase";
 import { Input } from "@/components/ui/input";
 import { toast } from "react-hot-toast";

@@ -15,6 +15,7 @@ import Students from "./components/Borrowers";
 import BorrowItem from "./components/AddItem";
 import Transactions from "./components/Transaction";
 import { MdAddBox } from "react-icons/md";
+import { Toaster } from "react-hot-toast";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -35,6 +36,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-black">
+      <Toaster />
       <nav className="bg-black text-white p-4">
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold">Lab Stock Management</h1>
