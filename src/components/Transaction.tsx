@@ -10,8 +10,16 @@ import {
 } from "@/components/ui/table";
 import { toast } from "react-hot-toast";
 
+interface Transaction {
+  id: string;
+  inventory: { name: string }[];
+  borrow_date: string;
+  return_date: string | null;
+  status: "borrowed" | "returned" | "overdue";
+  borrowers: { name: string }[];
+}
 const Transactions = () => {
-  const [transactions, setTransactions] = useState([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
     fetchTransactions();
@@ -27,13 +35,13 @@ const Transactions = () => {
         .order("borrow_date", { ascending: false });
 
       if (error) throw error;
-      setTransactions(data);
+      setTransactions(data || []);
     } catch (error) {
       toast.error("Failed to load transactions");
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: "borrowed" | "returned" | "overdue") => {
     switch (status) {
       case "borrowed":
         return "text-yellow-500";
@@ -63,8 +71,8 @@ const Transactions = () => {
           {transactions.length > 0 ? (
             transactions.map((tx) => (
               <TableRow key={tx.id}>
-                <TableCell>{tx.borrowers?.name || "Unknown"}</TableCell>
-                <TableCell>{tx.inventory?.name || "Unknown"}</TableCell>
+                <TableCell>{tx.borrowers[0]?.name || "Unknown"}</TableCell>
+                <TableCell>{tx.inventory[0]?.name || "Unknown"}</TableCell>
                 <TableCell>
                   {new Date(tx.borrow_date).toLocaleDateString()}
                 </TableCell>
