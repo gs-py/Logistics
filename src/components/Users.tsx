@@ -256,7 +256,7 @@ export default function Users() {
           )}
         </div>
         
-        <ScrollArea className="h-[calc(100vh-400px)] rounded-md">
+        <ScrollArea className="h-[calc(85vh-250px)] rounded-md">
           {isLoading && !isAdding ? (
             <div className="flex justify-center items-center h-40">
               <RefreshCw size={24} className="animate-spin text-blue-600" />

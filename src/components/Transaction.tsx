@@ -23,13 +23,16 @@ import {
   Clock 
 } from "lucide-react";
 
+// Update the Transaction interface first
 interface Transaction {
   id: string;
-  inventory: { name: string }[];
+  borrower_id: number;
+  inventory_id: number;
   borrow_date: string;
   return_date: string | null;
   status: "borrowed" | "returned" | "overdue";
-  borrowers: { name: string }[];
+  borrower: { name: string };  // Changed from borrowers array to single borrower
+  inventory: { name: string }; // Changed from inventory array to single item
 }
 
 const Transactions = () => {
@@ -69,15 +72,21 @@ const Transactions = () => {
       setIsLoading(true);
       let { data, error } = await supabase
         .from("transactions")
-        .select(
-          "id, borrow_date, return_date, status, borrowers(name), inventory(name)"
-        )
+        .select(`
+          id,
+          borrow_date,
+          return_date,
+          status,
+          borrower:borrowers!transactions_borrower_id_fkey(name),
+          inventory:inventory!transactions_inventory_id_fkey(name)
+        `)
         .order("borrow_date", { ascending: false });
-
+  
       if (error) throw error;
       setTransactions(data || []);
       setFilteredTransactions(data || []);
     } catch (error) {
+      console.error("Error fetching transactions:", error);
       toast.error("Failed to load transactions");
     } finally {
       setIsLoading(false);
@@ -215,9 +224,10 @@ const Transactions = () => {
                 filteredTransactions.map((tx) => {
                   const statusConfig = getStatusConfig(tx.status);
                   return (
+                    // Update the table row rendering
                     <TableRow key={tx.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{tx.borrowers[0]?.name || "Unknown"}</TableCell>
-                      <TableCell>{tx.inventory[0]?.name || "Unknown"}</TableCell>
+                      <TableCell className="font-medium">{tx.borrower?.name || "Unknown"}</TableCell>
+                      <TableCell>{tx.inventory?.name || "Unknown"}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
                           <Calendar size={14} className="mr-2 text-gray-400" />

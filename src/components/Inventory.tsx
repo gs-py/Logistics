@@ -15,12 +15,18 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Edit, Trash2, Package, Search, Plus, RefreshCw } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+// Add these to your existing interfaces
 interface InventoryItem {
   id: string;
   name: string;
   quantity: number;
   status: "borrowed" | "available" | "maintenance" | "damaged";
+  description?: string;
+  category?: string;
 }
 
 const AdminInventoryTab = () => {
@@ -74,21 +80,72 @@ const AdminInventoryTab = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this item?")) {
-      try {
-        const { error } = await supabase.from("inventory").delete().eq("id", id);
-        if (error) throw error;
-        toast.success("Item deleted successfully");
-        fetchInventory();
-      } catch (error) {
-        toast.error("Failed to delete item");
-      }
+  // Add these new states
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  
+  // Add this new function for handling updates
+  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedItem) return;
+
+    try {
+      const { error } = await supabase
+        .from("inventory")
+        .update({
+          name: selectedItem.name,
+          quantity: selectedItem.quantity,
+          status: selectedItem.status,
+          description: selectedItem.description,
+          category: selectedItem.category,
+        })
+        .eq("id", selectedItem.id);
+
+      if (error) throw error;
+      
+      toast.success("Item updated successfully");
+      setIsUpdateDialogOpen(false);
+      fetchInventory();
+    } catch (error) {
+      toast.error("Failed to update item");
     }
   };
 
+  // Modify the delete function to handle errors better
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this item?")) return;
+
+    try {
+      // Check if item is borrowed
+      const { data: transactions } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("inventory_id", id)
+        .eq("status", "borrowed")
+        .single();
+
+      if (transactions) {
+        toast.error("Cannot delete item that is currently borrowed");
+        return;
+      }
+
+      const { error } = await supabase
+        .from("inventory")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success("Item deleted successfully");
+      fetchInventory();
+    } catch (error) {
+      toast.error("Failed to delete item");
+    }
+  };
+
+  // Add the update dialog to your JSX, just before the closing Card tag
   return (
-    <Card className="shadow-md border border-gray-100">
+    <Card>
       <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <CardTitle className="flex items-center gap-2">
@@ -185,6 +242,10 @@ const AdminInventoryTab = () => {
                           variant="outline" 
                           size="sm" 
                           className="h-8 w-8 p-0"
+                          onClick={() => {
+                            setSelectedItem(item);
+                            setIsUpdateDialogOpen(true);
+                          }}
                         >
                           <Edit size={14} />
                         </Button>
@@ -212,6 +273,58 @@ const AdminInventoryTab = () => {
           </Table>
         </ScrollArea>
       </CardContent>
+      
+      <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Update Inventory Item</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={selectedItem?.name || ""}
+                  onChange={(e) => setSelectedItem(prev => ({ ...prev!, name: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="0"
+                  value={selectedItem?.quantity || 0}
+                  onChange={(e) => setSelectedItem(prev => ({ ...prev!, quantity: parseInt(e.target.value) }))}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={selectedItem?.status}
+                  onValueChange={(value: any) => setSelectedItem(prev => ({ ...prev!, status: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="available">Available</SelectItem>
+                    <SelectItem value="borrowed">Borrowed</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    <SelectItem value="damaged">Damaged</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Save changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

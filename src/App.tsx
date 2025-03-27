@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Package,
   UserPlus,
+  Trash2,
 } from "lucide-react";
 import { GrTransaction } from "react-icons/gr";
 import Login from "./components/Login";
@@ -20,6 +21,7 @@ import UsersManagement from "./components/Users";
 import Reports from "./components/Reports";
 import Students from "./components/Borrowers";
 import BorrowItem from "./components/AddItem";
+import RemoveItem from "./components/RemoveItem";
 import Transactions from "./components/Transaction";
 import { MdAddBox } from "react-icons/md";
 import { Toaster } from "react-hot-toast";
@@ -69,8 +71,14 @@ function App() {
     },
     {
       id: "add-item",
-      label: "Add Item",
+      label: "Checkout Item",
       icon: <MdAddBox size={20} />,
+      access: "all",
+    },
+    {
+      id: "remove-item",
+      label: "Return Item",
+      icon: <Trash2 size={20} />,
       access: "all",
     },
     {
@@ -90,13 +98,13 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-right" />
-      
+
       {/* Top Navigation */}
       <nav className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md">
         <div className="container mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="p-2 rounded-full hover:bg-white/10 lg:hidden"
               >
@@ -104,14 +112,20 @@ function App() {
               </button>
               <div className="flex items-center gap-2">
                 <Shield size={24} className="text-white" />
-                <h1 className="text-xl font-bold hidden sm:block">Lab Stock Management</h1>
+                <h1 className="text-xl font-bold hidden sm:block">
+                  Lab Stock Management
+                </h1>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="hidden sm:flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full text-sm">
                 <div className="w-2 h-2 rounded-full bg-green-400"></div>
-                <span>{currentUser?.role === "admin" ? "Administrator" : "Lab Assistant"}</span>
+                <span>
+                  {currentUser?.role === "admin"
+                    ? "Administrator"
+                    : "Lab Assistant"}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
@@ -133,7 +147,7 @@ function App() {
 
       <div className="flex">
         {/* Sidebar */}
-        <aside 
+        <aside
           className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           } pt-16 lg:pt-0 h-screen lg:h-[calc(100vh-56px)]`}
@@ -143,13 +157,13 @@ function App() {
               <p className="font-medium">Welcome,</p>
               <p>{currentUser?.name}</p>
             </div>
-            
+
             <nav className="space-y-1 flex-1 overflow-y-auto">
               {menuItems.map((item) => {
                 if (item.access === "admin" && currentUser?.role !== "admin") {
                   return null;
                 }
-                
+
                 return (
                   <button
                     key={item.id}
@@ -166,20 +180,30 @@ function App() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`${activeTab === item.id ? "text-blue-600" : "text-gray-500"}`}>
+                      <div
+                        className={`${
+                          activeTab === item.id
+                            ? "text-blue-600"
+                            : "text-gray-500"
+                        }`}
+                      >
                         {item.icon}
                       </div>
                       <span>{item.label}</span>
                     </div>
-                    {activeTab === item.id && <ChevronRight size={16} className="text-blue-600" />}
+                    {activeTab === item.id && (
+                      <ChevronRight size={16} className="text-blue-600" />
+                    )}
                   </button>
                 );
               })}
             </nav>
-            
+
             <div className="mt-auto pt-4 border-t border-gray-200">
               <div className="bg-blue-50 rounded-lg p-4 text-sm">
-                <p className="font-medium text-blue-800 mb-1">Lab Stock System</p>
+                <p className="font-medium text-blue-800 mb-1">
+                  Lab Stock System
+                </p>
                 <p className="text-blue-600 text-xs">Version 1.0.0</p>
               </div>
             </div>
@@ -187,16 +211,16 @@ function App() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-4 lg:p-6 pt-20 lg:pt-6 min-h-screen">
+        <main className="flex-1 p-4 lg:p-6 pt-20 lg:pt-6">
           <div className="max-w-7xl mx-auto">
             {/* Overlay for mobile when sidebar is open */}
             {sidebarOpen && (
-              <div 
+              <div
                 className="fixed inset-0 bg-black/50 z-40 lg:hidden"
                 onClick={() => setSidebarOpen(false)}
               ></div>
             )}
-            
+
             {activeTab === "dashboard" && (
               <Dashboard userRole={currentUser?.role || ""} />
             )}
@@ -209,6 +233,7 @@ function App() {
             )}
             {activeTab === "Borrowers" && <Students />}
             {activeTab === "add-item" && <BorrowItem />}
+            {activeTab === "remove-item" && <RemoveItem />}
             {activeTab === "transactions" && <Transactions />}
           </div>
         </main>
