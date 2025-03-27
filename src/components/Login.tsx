@@ -137,27 +137,6 @@ export default function Login({ onLogin }: LoginProps) {
                   'Sign In'
                 )}
               </button>
-
-              <div className="mt-6 space-y-4">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-200" />
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-500">Demo Credentials</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="font-medium text-gray-700">Admin</p>
-                    <p className="text-gray-500">admin / admin123</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="font-medium text-gray-700">Assistant</p>
-                    <p className="text-gray-500">assistant / asst123</p>
-                  </div>
-                </div>
-              </div>
             </form>
           </div>
         </div>

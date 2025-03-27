@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash2, BarChart3, Activity, Clock, ArrowUpRight, RefreshCw } from "lucide-react";
+import {  BarChart3, Activity, Clock, ArrowUpRight, RefreshCw } from "lucide-react";
 import supabase from "@/service/supabase";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
