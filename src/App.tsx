@@ -44,12 +44,13 @@ function App() {
     return <Login onLogin={handleLogin} />;
   }
 
+  // In the menuItems array, we'll keep the access control
   const menuItems = [
     {
       id: "dashboard",
       label: "Dashboard",
       icon: <Home size={20} />,
-      access: "all",
+      access: "admin",
     },
     {
       id: "inventory",
@@ -61,7 +62,7 @@ function App() {
       id: "users",
       label: "Users",
       icon: <UsersIcon size={20} />,
-      access: "admin",
+      access: "admin", // Already restricted to admin
     },
     {
       id: "Borrowers",
@@ -91,7 +92,7 @@ function App() {
       id: "reports",
       label: "Reports",
       icon: <BarChart3 size={20} />,
-      access: "all",
+      access: "admin",
     },
   ];
 
@@ -228,7 +229,7 @@ function App() {
             {activeTab === "users" && currentUser?.role === "admin" && (
               <UsersManagement />
             )}
-            {activeTab === "reports" && (
+            {activeTab === "reports" && currentUser?.role === "admin" && (
               <Reports userRole={currentUser?.role || ""} />
             )}
             {activeTab === "Borrowers" && <Students />}
