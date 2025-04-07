@@ -55,8 +55,8 @@ const Transactions = () => {
     
     if (searchTerm) {
       filtered = filtered.filter(tx => 
-        tx.borrowers[0]?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tx.inventory[0]?.name.toLowerCase().includes(searchTerm.toLowerCase())
+        tx.borrower?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tx.inventory?.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     

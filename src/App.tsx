@@ -222,7 +222,7 @@ function App() {
               ></div>
             )}
 
-            {activeTab === "dashboard" && (
+            {activeTab === "dashboard" && currentUser?.role === "admin" && (
               <Dashboard userRole={currentUser?.role || ""} />
             )}
             {activeTab === "inventory" && <Inventory />}
