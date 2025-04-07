@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// Fix the React import
+import React, { useState, useEffect } from "react";
 import {
   Shield,
   ClipboardList,
@@ -25,26 +26,129 @@ import RemoveItem from "./components/RemoveItem";
 import Transactions from "./components/Transaction";
 import { MdAddBox } from "react-icons/md";
 import { Toaster } from "react-hot-toast";
+import PendingApprovals from "./components/PendingApprovals";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<{
     role: string;
     name: string;
+    status?: string;
   } | null>(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [pendingAssistants, setPendingAssistants] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Generate unique tab ID
+    if (!sessionStorage.getItem('tabId')) {
+      sessionStorage.setItem('tabId', Math.random().toString(36).substring(7));
+    }
+    const tabId = sessionStorage.getItem('tabId');
+
+    const checkAuthStatus = () => {
+      const storedAuth = localStorage.getItem(`labStockAuth-${tabId}`);
+      if (storedAuth) {
+        const authData = JSON.parse(storedAuth);
+        setIsAuthenticated(authData.isAuthenticated);
+        setCurrentUser(authData.user);
+      }
+    };
+
+    const checkPendingAssistants = () => {
+      // Check all pending assistants in localStorage
+      const allKeys = Object.keys(localStorage);
+      const pendingKeys = allKeys.filter(key => key.startsWith('labStockAuth-pending-'));
+      
+      const pendingUsers = pendingKeys.map(key => {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : null;
+      }).filter(data => data && data.user?.status === 'pending');
+
+      setPendingAssistants(pendingUsers);
+    };
+
+    checkAuthStatus();
+    checkPendingAssistants();
+
+    window.addEventListener('storage', checkAuthStatus);
+    window.addEventListener('storage', checkPendingAssistants);
+
+    return () => {
+      window.removeEventListener('storage', checkAuthStatus);
+      window.removeEventListener('storage', checkPendingAssistants);
+    };
+  }, []);
 
   const handleLogin = (user: { role: string; name: string }) => {
-    setIsAuthenticated(true);
-    setCurrentUser(user);
+    const tabId = sessionStorage.getItem('tabId');
+    
+    if (user.role === 'admin') {
+      const authData = { isAuthenticated: true, user: { ...user, status: 'approved' } };
+      localStorage.setItem(`labStockAuth-${tabId}`, JSON.stringify(authData));
+      setIsAuthenticated(true);
+      setCurrentUser(user);
+    } else {
+      const authData = { isAuthenticated: false, user: { ...user, status: 'pending' }, tabId };
+      localStorage.setItem(`labStockAuth-pending-${tabId}`, JSON.stringify(authData));
+      setCurrentUser({ ...user, status: 'pending' });
+      
+      // Dispatch storage event to notify other tabs
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: `labStockAuth-pending-${tabId}`,
+        newValue: JSON.stringify(authData)
+      }));
+    }
   };
+
+  useEffect(() => {
+    const checkPendingAssistants = () => {
+      const pendingAuth = localStorage.getItem('labStockAuth-pending');
+      if (pendingAuth) {
+        const authData = JSON.parse(pendingAuth);
+        if (authData.user?.status === 'pending') {
+          setPendingAssistants(prev => {
+            const exists = prev.some(a => a.user.name === authData.user.name);
+            if (!exists) {
+              return [...prev, authData];
+            }
+            return prev;
+          });
+        }
+      }
+    };
+
+    if (currentUser?.role === 'admin') {
+      checkPendingAssistants();
+      window.addEventListener('storage', checkPendingAssistants);
+      return () => window.removeEventListener('storage', checkPendingAssistants);
+    }
+  }, [currentUser?.role]);
+
+  // Add function to handle assistant approval
+  const handleAssistantApproval = (assistantData: any) => {
+    const authData = { isAuthenticated: true, user: { ...assistantData.user, status: 'approved' } };
+    localStorage.setItem('labStockAuth', JSON.stringify(authData));
+  };
+
+  // Show pending approval message for assistants
+  if (currentUser?.status === 'pending') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Waiting for Admin Approval</h2>
+          <p className="text-gray-600">Please wait while an administrator approves your login.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }
 
   // In the menuItems array, we'll keep the access control
+  // Update menuItems array to include the pending approvals section for admin
   const menuItems = [
     {
       id: "dashboard",
@@ -93,6 +197,13 @@ function App() {
       label: "Reports",
       icon: <BarChart3 size={20} />,
       access: "admin",
+    },
+    {
+      id: "pending-approvals",
+      label: "Pending Approvals",
+      icon: <UserPlus size={20} />,
+      access: "admin",
+      badge: pendingAssistants?.length || 0,
     },
   ];
 
@@ -191,6 +302,11 @@ function App() {
                         {item.icon}
                       </div>
                       <span>{item.label}</span>
+                      {item.badge > 0 && (
+                        <span className="ml-2 px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">
+                          {item.badge}
+                        </span>
+                      )}
                     </div>
                     {activeTab === item.id && (
                       <ChevronRight size={16} className="text-blue-600" />
@@ -236,6 +352,9 @@ function App() {
             {activeTab === "add-item" && <BorrowItem />}
             {activeTab === "remove-item" && <RemoveItem />}
             {activeTab === "transactions" && <Transactions />}
+            {activeTab === "pending-approvals" && currentUser?.role === "admin" && (
+              <PendingApprovals />
+            )}
           </div>
         </main>
       </div>
