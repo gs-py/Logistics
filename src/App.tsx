@@ -341,7 +341,7 @@ function App() {
             {activeTab === "dashboard" && currentUser?.role === "admin" && (
               <Dashboard userRole={currentUser?.role || ""} />
             )}
-            {activeTab === "inventory" && <Inventory />}
+            {activeTab === "inventory" && <Inventory currentUser={currentUser} />}
             {activeTab === "users" && currentUser?.role === "admin" && (
               <UsersManagement />
             )}

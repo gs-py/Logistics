@@ -29,7 +29,7 @@ interface InventoryItem {
   category?: string;
 }
 
-const AdminInventoryTab = () => {
+const AdminInventoryTab = ({currentUser}) => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -162,14 +162,15 @@ const AdminInventoryTab = () => {
               <RefreshCw size={16} className="mr-1" />
               Refresh
             </Button>
-            <Button 
+            {currentUser.role === "admin" && (  <Button 
               variant="outline" 
               size="sm" 
               className="bg-white/20 text-white hover:bg-white/30 border-white/40"
             >
               <Plus size={16} className="mr-1" />
               Add Item
-            </Button>
+            </Button>)}
+          
           </div>
         </div>
       </CardHeader>
