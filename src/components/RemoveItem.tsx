@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "./ui/badge";
 
+// Update the Transaction interface to include quantity
 interface Transaction {
   id: number;
   borrower_id: number;
@@ -30,11 +31,13 @@ interface Transaction {
   borrow_date: string;
   return_date: string;
   status: string;
+  quantity: number; // Add this
   inventory: {
     id: number;
     name: string;
     category: string;
     status: string;
+    remaining_quantity: number; // Add this
   };
   borrower: {
     id: number;
@@ -67,6 +70,7 @@ const RemoveItem = () => {
     }
   }, [searchTerm, transactions]);
 
+  // Update fetchTransactions to include remaining_quantity
   const fetchTransactions = async () => {
     try {
       setIsLoading(true);
@@ -75,7 +79,7 @@ const RemoveItem = () => {
         .from("transactions")
         .select(`
           *,
-          inventory:inventory_id (id, name, status),
+          inventory:inventory_id (id, name, status, remaining_quantity),
           borrower:borrower_id (id, name)
         `)
         .order("borrow_date", { ascending: false });
@@ -96,28 +100,75 @@ const RemoveItem = () => {
       setIsLoading(false);
     }
   };
+const calculateFine = (returnDate: string) => {
+  const dueDate = new Date(returnDate);
+  const today = new Date();
 
+  if (today <= dueDate) return 0;
+
+  const diffTime = Math.abs(today.getTime() - dueDate.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays * 10; // $10 per day
+};
+  // Update handleReturn function
   const handleReturn = async (transactionId: number, inventoryId: number) => {
     try {
       setIsLoading(true);
-      
+
+      // Get the transaction details to know the quantity
+      const { data: transactionData, error: transactionFetchError } = await supabase
+        .from("transactions")
+        .select("quantity, inventory!inner(remaining_quantity)")
+        .eq("id", transactionId)
+        .single();
+    const fine = calculateFine(transactionData.return_date);
+    if (fine > 0) {
+      const confirmReturn = window.confirm(
+        `This item is overdue. A fine of $${fine} will be charged. Do you want to proceed?`
+      );
+      if (!confirmReturn) {
+        setIsLoading(false);
+        return;
+      }
+    }
+      if (transactionFetchError) throw transactionFetchError;
+  
+      // Get current inventory details
+      const { data: inventoryData, error: inventoryFetchError } = await supabase
+        .from("inventory")
+        .select("remaining_quantity, quantity")
+        .eq("id", inventoryId)
+        .single();
+  
+      if (inventoryFetchError) throw inventoryFetchError;
+  
+      // Calculate new remaining quantity
+      const newRemainingQuantity = inventoryData.remaining_quantity + transactionData.quantity;
+  
       // Update transaction status to returned
       const { error: transactionError } = await supabase
         .from("transactions")
         .update({ status: "returned" })
         .eq("id", transactionId);
-
+  
       if (transactionError) throw transactionError;
-
-      // Update inventory status to available
+  
+      // Update inventory status and remaining quantity
       const { error: inventoryError } = await supabase
         .from("inventory")
-        .update({ status: "available" })
+        .update({ 
+          status: "available",
+          remaining_quantity: newRemainingQuantity
+        })
         .eq("id", inventoryId);
-
+  
       if (inventoryError) throw inventoryError;
-
-      toast.success("Item returned successfully");
+  
+      toast.success(
+        fine > 0
+          ? `Item returned successfully. Fine charged: $${fine}`
+          : "Item returned successfully"
+      );
       fetchTransactions(); // Refresh the list
     } catch (error) {
       toast.error("Failed to process return");
@@ -205,9 +256,9 @@ const RemoveItem = () => {
             Return Items
           </CardTitle>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="bg-white/20 text-white hover:bg-white/30 border-white/40"
               onClick={updateOverdueItems}
               disabled={isLoading}
@@ -215,14 +266,17 @@ const RemoveItem = () => {
               <RefreshCw size={16} className="mr-1" />
               Check Overdue
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="bg-white/20 text-white hover:bg-white/30 border-white/40"
               onClick={fetchTransactions}
               disabled={isLoading}
             >
-              <RefreshCw size={16} className={`mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                size={16}
+                className={`mr-1 ${isLoading ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           </div>
@@ -232,7 +286,10 @@ const RemoveItem = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div className="flex flex-col sm:flex-row gap-4 w-full">
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={16}
+              />
               <Input
                 placeholder="Search items or borrowers..."
                 className="pl-10"
@@ -253,12 +310,15 @@ const RemoveItem = () => {
             </Select>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-100">
+            <Badge
+              variant="outline"
+              className="bg-blue-50 text-blue-700 hover:bg-blue-100"
+            >
               {filteredTransactions.length} items
             </Badge>
           </div>
         </div>
-        
+
         <ScrollArea className="h-[calc(100vh-300px)] w-full rounded-md border">
           <Table>
             <TableHeader>
@@ -268,6 +328,7 @@ const RemoveItem = () => {
                 <TableHead>Borrow Date</TableHead>
                 <TableHead>Return Date</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Fine</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -275,13 +336,21 @@ const RemoveItem = () => {
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center">
-                    <RefreshCw size={24} className="animate-spin mx-auto text-blue-600" />
-                    <p className="mt-2 text-gray-500">Loading transactions...</p>
+                    <RefreshCw
+                      size={24}
+                      className="animate-spin mx-auto text-blue-600"
+                    />
+                    <p className="mt-2 text-gray-500">
+                      Loading transactions...
+                    </p>
                   </TableCell>
                 </TableRow>
               ) : filteredTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-gray-500">
+                  <TableCell
+                    colSpan={6}
+                    className="h-24 text-center text-gray-500"
+                  >
                     {searchTerm ? (
                       <>No transactions match your search criteria</>
                     ) : (
@@ -299,49 +368,79 @@ const RemoveItem = () => {
                         </div>
                         <div>
                           <p>{transaction.inventory?.name || "Unknown Item"}</p>
-                          <p className="text-xs text-gray-500">ID: {transaction.inventory_id}</p>
+                          <p className="text-xs text-gray-500">
+                            ID: {transaction.inventory_id}
+                          </p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div>
-                          <p>{transaction.borrower?.name || "Unknown Borrower"}</p>
-                          <p className="text-xs text-gray-500">ID: {transaction.borrower_id}</p>
+                          <p>
+                            {transaction.borrower?.name || "Unknown Borrower"}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            ID: {transaction.borrower_id}
+                          </p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      {transaction.borrow_date ? formatDate(transaction.borrow_date) : "N/A"}
+                      {transaction.borrow_date
+                        ? formatDate(transaction.borrow_date)
+                        : "N/A"}
                     </TableCell>
                     <TableCell>
-                      <div className={`${
-                        transaction.status === "borrowed" && 
-                        transaction.return_date && 
-                        isOverdue(transaction.return_date) ? 
-                        "text-red-600 font-medium" : ""
-                      }`}>
-                        {transaction.return_date ? formatDate(transaction.return_date) : "N/A"}
-                        {transaction.status === "borrowed" && 
-                         transaction.return_date && 
-                         isOverdue(transaction.return_date) && 
-                         " (Overdue)"}
+                      <div
+                        className={`${
+                          transaction.status === "borrowed" &&
+                          transaction.return_date &&
+                          isOverdue(transaction.return_date)
+                            ? "text-red-600 font-medium"
+                            : ""
+                        }`}
+                      >
+                        {transaction.return_date
+                          ? formatDate(transaction.return_date)
+                          : "N/A"}
+                        {transaction.status === "borrowed" &&
+                          transaction.return_date &&
+                          isOverdue(transaction.return_date) &&
+                          " (Overdue)"}
                       </div>
                     </TableCell>
+                    <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                     <TableCell>
-                      {getStatusBadge(transaction.status)}
+                      {transaction.status === "overdue" ? (
+                        <span className="text-red-600 font-medium">
+                          ${calculateFine(transaction.return_date)}
+                        </span>
+                      ) : transaction.fine_amount ? (
+                        <span className="text-gray-600">
+                          ${transaction.fine_amount}
+                        </span>
+                      ) : (
+                        "-"
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {(transaction.status === "borrowed" || transaction.status === "overdue") && (
+                      {(transaction.status === "borrowed" ||
+                        transaction.status === "overdue") && (
                         <Button
                           variant="outline"
                           size="sm"
                           className={`${
-                            transaction.status === "overdue" 
+                            transaction.status === "overdue"
                               ? "text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
                               : "text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
                           }`}
-                          onClick={() => handleReturn(transaction.id, transaction.inventory_id)}
+                          onClick={() =>
+                            handleReturn(
+                              transaction.id,
+                              transaction.inventory_id
+                            )
+                          }
                           disabled={isLoading}
                         >
                           Return Item

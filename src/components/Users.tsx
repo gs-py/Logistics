@@ -15,12 +15,15 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "./ui/scroll-area";
+import { supabase_admin } from "@/service/supabase_admin";
 
 interface Borrower {
   id: number;
   name: string;
   email: string;
   phone: string;
+  username: string;
+  auth_id: string// 👈 add username
 }
 
 interface BorrowerForm {
@@ -87,9 +90,29 @@ export default function Users() {
       return;
     }
 
+    const baseUsername = form.name.toLowerCase().replace(/\s+/g, "");
+    const randomDigits = Math.floor(100 + Math.random() * 900); // 3-digit random number
+    const username = `${baseUsername}${randomDigits}`;
+    const password = username;
+
     try {
       setIsLoading(true);
-      const { error } = await supabase.from("borrowers").insert([form]);
+       const { data: authData, error: authError } = await supabase_admin.auth.signUp({
+         email: form.email,
+         password,
+       });
+        if (authError) {
+          throw authError;
+        }
+      const { error } = await supabase.from("borrowers").insert([
+        {
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          username: username,
+          auth_id: authData.user?.id// 👈 insert username
+        },
+      ]);
       if (error) throw error;
 
       toast.success("Borrower added successfully");
@@ -108,12 +131,23 @@ export default function Users() {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
+const deleteAuthUser = async (userId: string ) => {
+  try {
+    const { error } = await supabase_admin.auth.admin.deleteUser(userId);
+    if (error) throw error;
+    console.log("Auth user deleted");
+  } catch (err) {
+    console.error("Failed to delete auth user:", err);
+  }
+};
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number ,auth_id :string) => {
     if (confirm("Are you sure you want to delete this borrower?")) {
       try {
         setIsLoading(true);
+
         const { error } = await supabase.from("borrowers").delete().eq("id", id);
+        await deleteAuthUser(auth_id);
         if (error) throw error;
         toast.success("Borrower deleted successfully");
         fetchUsers();
@@ -286,13 +320,14 @@ export default function Users() {
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => handleDelete(user.id)}
+                      onClick={() => handleDelete(user.id ,user.auth_id)}
                     >
                       <Trash2 size={16} />
                     </Button>
                   </div>
                   
                   <div className="mt-4 space-y-2">
+                    <h1 className="text-red-500 font-medium ">Username : { user.username}</h1>
                     <div className="flex items-center gap-2 text-sm">
                       <Mail size={14} className="text-gray-400" />
                       <a href={`mailto:${user.email}`} className="text-blue-600 hover:underline">

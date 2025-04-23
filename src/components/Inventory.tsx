@@ -24,7 +24,8 @@ interface InventoryItem {
   id: string;
   name: string;
   quantity: number;
-  status: "borrowed" | "available" | "maintenance" | "damaged";
+  remaining_quantity: number; // Add this
+  status: "borrowed" | "available" | "maintenance" | "damaged" | "out_of_stock";
   description?: string;
   category?: string;
 }
@@ -40,6 +41,7 @@ const AdminInventoryTab = ({currentUser}) => {
     available: "bg-green-100 text-green-800 border-green-200",
     maintenance: "bg-gray-100 text-gray-800 border-gray-200",
     damaged: "bg-red-100 text-red-800 border-red-200",
+    out_of_stock: "bg-orange-100 text-orange-800 border-orange-200",
   };
   
   const statusIcons = {
@@ -47,6 +49,7 @@ const AdminInventoryTab = ({currentUser}) => {
     available: "✅",
     maintenance: "🔧",
     damaged: "⚠️",
+    out_of_stock: "❌",
   };
 
   useEffect(() => {
@@ -85,22 +88,47 @@ const AdminInventoryTab = ({currentUser}) => {
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   
   // Add this new function for handling updates
+  // Add function to check and update stock status
+  const updateStockStatus = async (item: InventoryItem) => {
+    if (item.quantity <= 0 && item.status !== 'out_of_stock') {
+      const { error } = await supabase
+        .from("inventory")
+        .update({ status: 'out_of_stock' })
+        .eq("id", item.id);
+      
+      if (!error) {
+        fetchInventory();
+      }
+    }
+  };
+
+  // Modify the handleUpdate function
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedItem) return;
-
+  
     try {
+      // Ensure remaining_quantity doesn't exceed quantity
+      const remaining_quantity = Math.min(
+        selectedItem.remaining_quantity, 
+        selectedItem.quantity
+      );
+  
+      // Set status based on remaining quantity
+      const status = remaining_quantity <= 0 ? 'out_of_stock' : selectedItem.status;
+  
       const { error } = await supabase
         .from("inventory")
         .update({
           name: selectedItem.name,
           quantity: selectedItem.quantity,
-          status: selectedItem.status,
+          remaining_quantity: remaining_quantity,
+          status: status,
           description: selectedItem.description,
           category: selectedItem.category,
         })
         .eq("id", selectedItem.id);
-
+  
       if (error) throw error;
       
       toast.success("Item updated successfully");
@@ -205,7 +233,8 @@ const AdminInventoryTab = ({currentUser}) => {
               <TableRow className="bg-gray-50">
                 <TableHead className="w-[80px]">ID</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead className="text-center">Quantity</TableHead>
+                <TableHead className="text-center">Total Quantity</TableHead>
+                <TableHead className="text-center">Available</TableHead>
                 <TableHead className="text-center">Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -214,13 +243,13 @@ const AdminInventoryTab = ({currentUser}) => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     Loading inventory...
                   </TableCell>
                 </TableRow>
               ) : filteredInventory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-gray-500">
+                  <TableCell colSpan={6} className="h-24 text-center text-gray-500">
                     No items found
                   </TableCell>
                 </TableRow>
@@ -230,6 +259,11 @@ const AdminInventoryTab = ({currentUser}) => {
                     <TableCell className="font-medium">{item.id}</TableCell>
                     <TableCell>{item.name}</TableCell>
                     <TableCell className="text-center">{item.quantity}</TableCell>
+                    <TableCell className="text-center">
+                      <span className={item.remaining_quantity === 0 ? "text-red-500" : "text-green-500"}>
+                        {item.remaining_quantity}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <div className="flex justify-center">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[item.status]}`}>
