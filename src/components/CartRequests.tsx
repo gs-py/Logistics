@@ -93,10 +93,15 @@ const CartRequests = ({ currentUser, onRequestProcessed }: CartRequestsProps) =>
     try {
       setIsLoading(true);
       
-      // Get cart items
+      // Get cart items with return dates
       const { data: cartItems, error: itemsError } = await supabase
         .from("cart_items")
-        .select("inventory_id, quantity, inventory:inventory_id (remaining_quantity)")
+        .select(`
+          inventory_id, 
+          quantity, 
+          return_date,
+          inventory:inventory_id (remaining_quantity)
+        `)
         .eq("cart_id", cartId);
       
       if (itemsError) throw itemsError;
@@ -113,7 +118,7 @@ const CartRequests = ({ currentUser, onRequestProcessed }: CartRequestsProps) =>
       
       // Begin transaction
       for (const item of (cartItems || [])) {
-        // Create transaction record
+        // Create transaction record using item's return date
         const { error: transactionError } = await supabase
           .from("transactions")
           .insert({
@@ -121,7 +126,7 @@ const CartRequests = ({ currentUser, onRequestProcessed }: CartRequestsProps) =>
             inventory_id: item.inventory_id,
             status: "borrowed",
             quantity: item.quantity,
-            return_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 7 days
+            return_date: item.return_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Use item's return date or default to 7 days
           });
         
         if (transactionError) throw transactionError;
