@@ -10,7 +10,7 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import { CalendarClock, Package, User } from "lucide-react";
+import { Calendar, Package, User, CalendarClock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Borrower {
@@ -21,14 +21,12 @@ interface Borrower {
 interface InventoryItem {
   id: number;
   name: string;
-  remaining_quantity?: number;
 }
 
 interface BorrowForm {
   borrower_id: string;
   inventory_id: string;
   return_date: string;
-  quantity: number;
 }
 
 const BorrowItem = () => {
@@ -40,7 +38,6 @@ const BorrowItem = () => {
     borrower_id: "",
     inventory_id: "",
     return_date: "",
-    quantity: 1,
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -52,13 +49,11 @@ const BorrowItem = () => {
   const fetchBorrowers = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from("borrowers")
-        .select("id, name");
+      let { data, error } = await supabase.from("borrowers").select("id, name");
       if (error) throw error;
       setBorrowers(data || []);
       setFilteredBorrowers(data || []);
-    } catch {
+    } catch (error) {
       toast.error("Failed to load borrowers");
     } finally {
       setIsLoading(false);
@@ -68,13 +63,13 @@ const BorrowItem = () => {
   const fetchInventory = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("inventory")
-        .select("id, name, remaining_quantity")
+        .select("id, name")
         .eq("status", "available");
       if (error) throw error;
       setInventory(data || []);
-    } catch {
+    } catch (error) {
       toast.error("Failed to load inventory");
     } finally {
       setIsLoading(false);
@@ -82,73 +77,66 @@ const BorrowItem = () => {
   };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.toLowerCase();
-    setSearchTerm(value);
+    const searchTerm = e.target.value.toLowerCase();
+    setSearchTerm(searchTerm);
     setFilteredBorrowers(
-      borrowers.filter((b) => b.name.toLowerCase().includes(value))
+      borrowers.filter((b) => b.name.toLowerCase().includes(searchTerm))
     );
   };
 
+  // In the handleSubmit function
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const { borrower_id, inventory_id, return_date, quantity } = form;
-    if (!borrower_id || !inventory_id || !return_date || quantity < 1) {
-      toast.error("Please fill in all fields with valid values");
+    
+    if (!form.borrower_id || !form.inventory_id || !form.return_date) {
+      toast.error("Please fill in all fields");
       return;
     }
-
+    
     try {
       setIsLoading(true);
-
+  
+      // First, check if there's enough remaining quantity
       const { data: inventoryItem, error: inventoryError } = await supabase
         .from("inventory")
         .select("remaining_quantity")
-        .eq("id", inventory_id)
+        .eq("id", form.inventory_id)
         .single();
-
+  
       if (inventoryError) throw inventoryError;
-      if (!inventoryItem || inventoryItem.remaining_quantity < quantity) {
-        toast.error(
-          `Not enough items available. Only ${inventoryItem?.remaining_quantity} remaining`
-        );
+  
+      if (!inventoryItem || inventoryItem.remaining_quantity <= 0) {
+        toast.error("This item is not available for borrowing");
         return;
       }
-
-      const { error: transactionError } = await supabase
-        .from("transactions")
-        .insert([
-          {
-            borrower_id,
-            inventory_id,
-            return_date,
-            status: "borrowed",
-            quantity,
-          },
-        ]);
-
+  
+      // Create the transaction
+      const { error: transactionError } = await supabase.from("transactions").insert([
+        {
+          borrower_id: form.borrower_id,
+          inventory_id: form.inventory_id,
+          return_date: form.return_date,
+          status: "borrowed",
+        },
+      ]);
+  
       if (transactionError) throw transactionError;
-
-      const newRemaining = inventoryItem.remaining_quantity - quantity;
+  
+      // Update the inventory remaining quantity
       const { error: updateError } = await supabase
         .from("inventory")
-        .update({
-          remaining_quantity: newRemaining,
-          status: newRemaining === 0 ? "out_of_stock" : "borrowed",
+        .update({ 
+          remaining_quantity: inventoryItem.remaining_quantity - 1,
+          status: inventoryItem.remaining_quantity - 1 === 0 ? 'out_of_stock' : 'borrowed'
         })
-        .eq("id", inventory_id);
-
+        .eq("id", form.inventory_id);
+  
       if (updateError) throw updateError;
-
+          
       toast.success("Item borrowed successfully");
-      setForm({
-        borrower_id: "",
-        inventory_id: "",
-        return_date: "",
-        quantity: 1,
-      });
-      fetchInventory();
-    } catch {
+      setForm({ borrower_id: "", inventory_id: "", return_date: "" });
+      fetchInventory(); // Refresh inventory list
+    } catch (error) {
       toast.error("Failed to process transaction");
     } finally {
       setIsLoading(false);
@@ -159,26 +147,19 @@ const BorrowItem = () => {
     <Card className="w-full max-w-3xl mx-auto shadow-lg">
       <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
         <CardTitle className="flex items-center gap-2 text-xl">
-          <Package size={20} /> Borrow an Item
+          <Package size={20} />
+          Borrow an Item
         </CardTitle>
       </CardHeader>
       <CardContent className="p-6">
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Borrower Select */}
           <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">
-              Borrower
-            </label>
+            <label className="text-sm font-medium text-gray-700">Borrower</label>
             <div className="relative">
-              <User
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={16}
-              />
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
               <Select
                 value={form.borrower_id}
-                onValueChange={(value) =>
-                  setForm({ ...form, borrower_id: value })
-                }
+                onValueChange={(value) => setForm({ ...form, borrower_id: value })}
               >
                 <SelectTrigger className="pl-10 w-full">
                   <SelectValue placeholder="Select Borrower" />
@@ -208,19 +189,13 @@ const BorrowItem = () => {
             </div>
           </div>
 
-          {/* Inventory Select */}
           <div className="space-y-1">
             <label className="text-sm font-medium text-gray-700">Item</label>
             <div className="relative">
-              <Package
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={16}
-              />
+              <Package className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
               <Select
                 value={form.inventory_id}
-                onValueChange={(value) =>
-                  setForm({ ...form, inventory_id: value })
-                }
+                onValueChange={(value) => setForm({ ...form, inventory_id: value })}
               >
                 <SelectTrigger className="pl-10 w-full">
                   <SelectValue placeholder="Select Item" />
@@ -242,55 +217,21 @@ const BorrowItem = () => {
             </div>
           </div>
 
-          {/* Quantity Input */}
           <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">
-              Quantity
-            </label>
+            <label className="text-sm font-medium text-gray-700">Return Date</label>
             <div className="relative">
-              <Package
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={16}
-              />
-              <Input
-                type="number"
-                min="1"
-                className="pl-10"
-                value={form.quantity}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  if (value > 0) {
-                    setForm({ ...form, quantity: value });
-                  }
-                }}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Return Date */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">
-              Return Date
-            </label>
-            <div className="relative">
-              <CalendarClock
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={16}
-              />
+              <CalendarClock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
               <Input
                 type="date"
                 className="pl-10"
                 value={form.return_date}
-                onChange={(e) =>
-                  setForm({ ...form, return_date: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, return_date: e.target.value })}
               />
             </div>
           </div>
 
-          <Button
-            type="submit"
+          <Button 
+            type="submit" 
             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
             disabled={isLoading}
           >

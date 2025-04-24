@@ -13,6 +13,7 @@ import {
   Package,
   UserPlus,
   Trash2,
+  ShoppingCart,
 } from "lucide-react";
 import { GrTransaction } from "react-icons/gr";
 import Login from "./components/Login";
@@ -27,6 +28,8 @@ import Transactions from "./components/Transaction";
 import { MdAddBox } from "react-icons/md";
 import { Toaster } from "react-hot-toast";
 import PendingApprovals from "./components/PendingApprovals";
+import CartRequests from "./components/CartRequests";
+import supabase from "./service/supabase";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -38,7 +41,20 @@ function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pendingAssistants, setPendingAssistants] = useState<any[]>([]);
+  const [pendingCartRequests, setPendingCartRequests] = useState(0);
+const fetchPendingCartRequests = async () => {
+  try {
+    const { count, error } = await supabase
+      .from("cart")
+      .select("id", { count: "exact" })
+      .eq("status", "requested");
 
+    if (error) throw error;
+    setPendingCartRequests(count || 0);
+  } catch (error) {
+    console.error("Error fetching pending cart requests:", error);
+  }
+};
   useEffect(() => {
     // Generate unique tab ID
     if (!sessionStorage.getItem('tabId')) {
@@ -70,6 +86,9 @@ function App() {
 
     checkAuthStatus();
     checkPendingAssistants();
+      if (isAuthenticated) {
+        fetchPendingCartRequests(); // Add this line
+      }
 
     window.addEventListener('storage', checkAuthStatus);
     window.addEventListener('storage', checkPendingAssistants);
@@ -185,6 +204,13 @@ function App() {
       label: "Return Item",
       icon: <Trash2 size={20} />,
       access: "all",
+    },
+    {
+      id: "cart-requests",
+      label: "Cart Requests",
+      icon: <ShoppingCart size={20} />,
+      access: "all",
+      badge: pendingCartRequests,
     },
     {
       id: "transactions",
@@ -341,7 +367,9 @@ function App() {
             {activeTab === "dashboard" && currentUser?.role === "admin" && (
               <Dashboard userRole={currentUser?.role || ""} />
             )}
-            {activeTab === "inventory" && <Inventory currentUser={currentUser} />}
+            {activeTab === "inventory" && (
+              <Inventory currentUser={currentUser} />
+            )}
             {activeTab === "users" && currentUser?.role === "admin" && (
               <UsersManagement />
             )}
@@ -352,9 +380,14 @@ function App() {
             {activeTab === "add-item" && <BorrowItem />}
             {activeTab === "remove-item" && <RemoveItem />}
             {activeTab === "transactions" && <Transactions />}
-            {activeTab === "pending-approvals" && currentUser?.role === "admin" && (
-              <PendingApprovals />
+            {activeTab === "cart-requests" && (
+              <CartRequests
+                currentUser={currentUser}
+                onRequestProcessed={fetchPendingCartRequests}
+              />
             )}
+            {activeTab === "pending-approvals" &&
+              currentUser?.role === "admin" && <PendingApprovals />}
           </div>
         </main>
       </div>
