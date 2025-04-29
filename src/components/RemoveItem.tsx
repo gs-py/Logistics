@@ -22,6 +22,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "./ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 // Update the Transaction interface to include quantity
 interface Transaction {
@@ -51,6 +59,11 @@ const RemoveItem = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("borrowed");
+const [isDamageDialogOpen, setIsDamageDialogOpen] = useState(false);
+const [selectedTransaction, setSelectedTransaction] =
+  useState<Transaction | null>(null);
+const [damagedQuantity, setDamagedQuantity] = useState<number>(0);
+const [damagesFine, setDamagesFine] = useState(0);
 
   useEffect(() => {
     fetchTransactions();
@@ -111,73 +124,182 @@ const calculateFine = (returnDate: string) => {
   return diffDays * 10; // $10 per day
 };
   // Update handleReturn function
-  const handleReturn = async (transactionId: number, inventoryId: number) => {
-    try {
-      setIsLoading(true);
+  // const handleReturn = async (transactionId: number, inventoryId: number) => {
+  //   try {
+  //     setIsLoading(true);
 
-      // Get the transaction details to know the quantity
-      const { data: transactionData, error: transactionFetchError } = await supabase
-        .from("transactions")
-        .select("quantity, inventory!inner(remaining_quantity)")
-        .eq("id", transactionId)
-        .single();
-    const fine = calculateFine(transactionData.return_date);
-    if (fine > 0) {
-      const confirmReturn = window.confirm(
-        `This item is overdue. A fine of $${fine} will be charged. Do you want to proceed?`
-      );
-      if (!confirmReturn) {
-        setIsLoading(false);
-        return;
-      }
-    }
-      if (transactionFetchError) throw transactionFetchError;
+  //     // Get the transaction details to know the quantity
+  //     const { data: transactionData, error: transactionFetchError } = await supabase
+  //       .from("transactions")
+  //       .select("quantity, inventory!inner(remaining_quantity)")
+  //       .eq("id", transactionId)
+  //       .single();
+  //   const fine = calculateFine(transactionData.return_date);
+  //   if (fine > 0) {
+  //     const confirmReturn = window.confirm(
+  //       `This item is overdue. A fine of $${fine} will be charged. Do you want to proceed?`
+  //     );
+  //     if (!confirmReturn) {
+  //       setIsLoading(false);
+  //       return;
+  //     }
+  //   }
+  //     if (transactionFetchError) throw transactionFetchError;
   
-      // Get current inventory details
-      const { data: inventoryData, error: inventoryFetchError } = await supabase
-        .from("inventory")
-        .select("remaining_quantity, quantity")
-        .eq("id", inventoryId)
-        .single();
+  //     // Get current inventory details
+  //     const { data: inventoryData, error: inventoryFetchError } = await supabase
+  //       .from("inventory")
+  //       .select("remaining_quantity, quantity")
+  //       .eq("id", inventoryId)
+  //       .single();
   
-      if (inventoryFetchError) throw inventoryFetchError;
+  //     if (inventoryFetchError) throw inventoryFetchError;
   
-      // Calculate new remaining quantity
-      const newRemainingQuantity = inventoryData.remaining_quantity + transactionData.quantity;
+  //     // Calculate new remaining quantity
+  //     const newRemainingQuantity = inventoryData.remaining_quantity + transactionData.quantity;
   
-      // Update transaction status to returned
-      const { error: transactionError } = await supabase
-        .from("transactions")
-        .update({ status: "returned" })
-        .eq("id", transactionId);
+  //     // Update transaction status to returned
+  //     const { error: transactionError } = await supabase
+  //       .from("transactions")
+  //       .update({ status: "returned" })
+  //       .eq("id", transactionId);
   
-      if (transactionError) throw transactionError;
+  //     if (transactionError) throw transactionError;
   
-      // Update inventory status and remaining quantity
-      const { error: inventoryError } = await supabase
-        .from("inventory")
-        .update({ 
-          status: "available",
-          remaining_quantity: newRemainingQuantity
-        })
-        .eq("id", inventoryId);
+  //     // Update inventory status and remaining quantity
+  //     const { error: inventoryError } = await supabase
+  //       .from("inventory")
+  //       .update({ 
+  //         status: "available",
+  //         remaining_quantity: newRemainingQuantity
+  //       })
+  //       .eq("id", inventoryId);
   
-      if (inventoryError) throw inventoryError;
+  //     if (inventoryError) throw inventoryError;
   
-      toast.success(
-        fine > 0
-          ? `Item returned successfully. Fine charged: $${fine}`
-          : "Item returned successfully"
-      );
-      fetchTransactions(); // Refresh the list
-    } catch (error) {
-      toast.error("Failed to process return");
-      console.error("Error returning item:", error);
-    } finally {
-      setIsLoading(false);
-    }
+  //     toast.success(
+  //       fine > 0
+  //         ? `Item returned successfully. Fine charged: $${fine}`
+  //         : "Item returned successfully"
+  //     );
+  //     fetchTransactions(); // Refresh the list
+  //   } catch (error) {
+  //     toast.error("Failed to process return");
+  //     console.error("Error returning item:", error);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+// Update the Transaction interface
+interface Transaction {
+  id: number;
+  borrower_id: number;
+  inventory_id: number;
+  borrow_date: string;
+  return_date: string;
+  status: string;
+  quantity: number;
+  damaged_quantity: number;
+  fine_amount: number;
+  inventory: {
+    id: number;
+    name: string;
+    category: string;
+    status: string;
+    remaining_quantity: number;
   };
+  borrower: {
+    id: number;
+    name: string;
+  };
+}
 
+// Update handleReturn function
+const handleReturn = async (transactionId: number, inventoryId: number) => {
+  const { data: transactionData, error: transactionFetchError } = await supabase
+    .from("transactions")
+    .select(`
+      *,
+      inventory!inner (
+        id,
+        name,
+        status,
+        remaining_quantity
+      )
+    `)
+    .eq("id", transactionId)
+    .single();
+
+  if (transactionFetchError) {
+    toast.error("Failed to fetch transaction details");
+    return;
+  }
+
+  setSelectedTransaction(transactionData);
+  setDamagedQuantity(0);
+  setDamagesFine(0);
+  setIsDamageDialogOpen(true);
+};
+
+// Update processReturn function
+const processReturn = async () => {
+  if (!selectedTransaction) return;
+
+  try {
+    setIsLoading(true);
+
+    const overdueFine = selectedTransaction.return_date
+      ? calculateFine(selectedTransaction.return_date)
+      : 0;
+
+    const totalFine = overdueFine + damagesFine;
+    const goodItems = selectedTransaction.quantity - damagedQuantity;
+
+    const { data: inventoryData, error: inventoryFetchError } = await supabase
+      .from("inventory")
+      .select("quantity, remaining_quantity")
+      .eq("id", selectedTransaction.inventory_id)
+      .single();
+if (inventoryFetchError) throw inventoryFetchError;
+    // Update inventory: add back good items to remaining_quantity and reduce total quantity by damaged items
+    const { error: inventoryError } = await supabase
+      .from("inventory")
+      .update({
+        remaining_quantity: inventoryData.remaining_quantity + goodItems,
+        quantity: inventoryData.quantity - damagedQuantity,
+        status: "available",
+      })
+      .eq("id", selectedTransaction.inventory_id);
+
+    if (inventoryError) throw inventoryError;
+
+    // Then update the transaction
+    const { error: transactionError } = await supabase
+      .from("transactions")
+      .update({
+        status: "returned",
+        fine_amount: totalFine,
+        damaged_quantity: damagedQuantity,
+        return_date:
+          selectedTransaction.return_date || new Date().toISOString(),
+      })
+      .eq("id", selectedTransaction.id);
+
+    if (transactionError) throw transactionError;
+
+    toast.success(`Item returned successfully. Total fine: $${totalFine}`);
+    setIsDamageDialogOpen(false);
+    setDamagedQuantity(0);
+    setDamagesFine(0);
+    setSelectedTransaction(null);
+    fetchTransactions();
+  } catch (error) {
+    toast.error("Failed to process return");
+    console.error("Error returning item:", error);
+  } finally {
+    setIsLoading(false);
+  }
+};
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -454,6 +576,52 @@ const calculateFine = (returnDate: string) => {
           </Table>
         </ScrollArea>
       </CardContent>
+      <Dialog open={isDamageDialogOpen} onOpenChange={setIsDamageDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Return Items</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="damaged" className="text-right">
+                Damaged Items
+              </Label>
+              <Input
+                id="damaged"
+                type="number"
+                className="col-span-3"
+                value={damagedQuantity}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (selectedTransaction && val <= selectedTransaction.quantity && val >= 0) {
+                    setDamagedQuantity(val);
+                  }
+                }}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="fine" className="text-right">
+                Damage Fine ($)
+              </Label>
+              <Input
+                id="fine"
+                type="number"
+                className="col-span-3"
+                value={damagesFine}
+                onChange={(e) => setDamagesFine(Math.max(0, parseFloat(e.target.value)))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDamageDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={processReturn}>
+              Confirm Return
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
