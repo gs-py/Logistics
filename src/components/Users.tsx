@@ -327,7 +327,7 @@ const deleteAuthUser = async (userId: string ) => {
                   </div>
                   
                   <div className="mt-4 space-y-2">
-                    <h1 className="text-red-500 font-medium ">Username : { user.username}</h1>
+                    <h1 className="text-red-500 font-medium ">Password : { user.username}</h1>
                     <div className="flex items-center gap-2 text-sm">
                       <Mail size={14} className="text-gray-400" />
                       <a href={`mailto:${user.email}`} className="text-blue-600 hover:underline">

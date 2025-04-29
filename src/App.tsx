@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Shield,
-  ClipboardList,
+  
   Users as UsersIcon,
   BarChart3,
   Home,
@@ -27,7 +27,7 @@ import RemoveItem from "./components/RemoveItem";
 import Transactions from "./components/Transaction";
 import { MdAddBox } from "react-icons/md";
 import { Toaster } from "react-hot-toast";
-import PendingApprovals from "./components/PendingApprovals";
+
 import CartRequests from "./components/CartRequests";
 import supabase from "./service/supabase";
 
@@ -40,7 +40,7 @@ function App() {
   } | null>(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [pendingAssistants, setPendingAssistants] = useState<any[]>([]);
+
   const [pendingCartRequests, setPendingCartRequests] = useState(0);
 const fetchPendingCartRequests = async () => {
   try {
@@ -71,97 +71,30 @@ const fetchPendingCartRequests = async () => {
       }
     };
 
-    const checkPendingAssistants = () => {
-      // Check all pending assistants in localStorage
-      const allKeys = Object.keys(localStorage);
-      const pendingKeys = allKeys.filter(key => key.startsWith('labStockAuth-pending-'));
-      
-      const pendingUsers = pendingKeys.map(key => {
-        const data = localStorage.getItem(key);
-        return data ? JSON.parse(data) : null;
-      }).filter(data => data && data.user?.status === 'pending');
-
-      setPendingAssistants(pendingUsers);
-    };
-
     checkAuthStatus();
-    checkPendingAssistants();
-      if (isAuthenticated) {
-        fetchPendingCartRequests(); // Add this line
-      }
+    if (isAuthenticated) {
+      fetchPendingCartRequests();
+    }
 
     window.addEventListener('storage', checkAuthStatus);
-    window.addEventListener('storage', checkPendingAssistants);
 
     return () => {
       window.removeEventListener('storage', checkAuthStatus);
-      window.removeEventListener('storage', checkPendingAssistants);
     };
   }, []);
 
   const handleLogin = (user: { role: string; name: string }) => {
     const tabId = sessionStorage.getItem('tabId');
-    
-    if (user.role === 'admin') {
-      const authData = { isAuthenticated: true, user: { ...user, status: 'approved' } };
-      localStorage.setItem(`labStockAuth-${tabId}`, JSON.stringify(authData));
-      setIsAuthenticated(true);
-      setCurrentUser(user);
-    } else {
-      const authData = { isAuthenticated: false, user: { ...user, status: 'pending' }, tabId };
-      localStorage.setItem(`labStockAuth-pending-${tabId}`, JSON.stringify(authData));
-      setCurrentUser({ ...user, status: 'pending' });
-      
-      // Dispatch storage event to notify other tabs
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: `labStockAuth-pending-${tabId}`,
-        newValue: JSON.stringify(authData)
-      }));
-    }
+    const authData = { isAuthenticated: true, user: { ...user } };
+    localStorage.setItem(`labStockAuth-${tabId}`, JSON.stringify(authData));
+    setIsAuthenticated(true);
+    setCurrentUser(user);
   };
 
-  useEffect(() => {
-    const checkPendingAssistants = () => {
-      const pendingAuth = localStorage.getItem('labStockAuth-pending');
-      if (pendingAuth) {
-        const authData = JSON.parse(pendingAuth);
-        if (authData.user?.status === 'pending') {
-          setPendingAssistants(prev => {
-            const exists = prev.some(a => a.user.name === authData.user.name);
-            if (!exists) {
-              return [...prev, authData];
-            }
-            return prev;
-          });
-        }
-      }
-    };
 
-    if (currentUser?.role === 'admin') {
-      checkPendingAssistants();
-      window.addEventListener('storage', checkPendingAssistants);
-      return () => window.removeEventListener('storage', checkPendingAssistants);
-    }
-  }, [currentUser?.role]);
-
-  // Add function to handle assistant approval
-  const handleAssistantApproval = (assistantData: any) => {
-    const authData = { isAuthenticated: true, user: { ...assistantData.user, status: 'approved' } };
-    localStorage.setItem('labStockAuth', JSON.stringify(authData));
-  };
 
   // Show pending approval message for assistants
-  if (currentUser?.status === 'pending') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Waiting for Admin Approval</h2>
-          <p className="text-gray-600">Please wait while an administrator approves your login.</p>
-        </div>
-      </div>
-    );
-  }
-
+ 
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }
@@ -224,13 +157,7 @@ const fetchPendingCartRequests = async () => {
       icon: <BarChart3 size={20} />,
       access: "admin",
     },
-    {
-      id: "pending-approvals",
-      label: "Pending Approvals",
-      icon: <UserPlus size={20} />,
-      access: "admin",
-      badge: pendingAssistants?.length || 0,
-    },
+  
   ];
 
   return (
@@ -386,8 +313,8 @@ const fetchPendingCartRequests = async () => {
                 onRequestProcessed={fetchPendingCartRequests}
               />
             )}
-            {activeTab === "pending-approvals" &&
-              currentUser?.role === "admin" && <PendingApprovals />}
+            {/* {activeTab === "pending-approvals" &&
+              currentUser?.role === "admin" && <PendingApprovals />} */}
           </div>
         </main>
       </div>
