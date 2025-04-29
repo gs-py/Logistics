@@ -63,7 +63,8 @@ const [isDamageDialogOpen, setIsDamageDialogOpen] = useState(false);
 const [selectedTransaction, setSelectedTransaction] =
   useState<Transaction | null>(null);
 const [damagedQuantity, setDamagedQuantity] = useState<number>(0);
-const [damagesFine, setDamagesFine] = useState(0);
+  const [damagesFine, setDamagesFine] = useState(0);
+  const [damageImage, setDamageImage] = useState<File | null>(null);
 
   useEffect(() => {
     fetchTransactions();
@@ -82,7 +83,49 @@ const [damagesFine, setDamagesFine] = useState(0);
       setFilteredTransactions(transactions);
     }
   }, [searchTerm, transactions]);
+    const signInAnonymously = async () => {
+      try {
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (error) throw error;
+        return data.session;
+      } catch (error) {
+        console.error("Error signing in anonymously:", error);
+        return null;
+      }
+    };
+// Add this function to handle image upload to Supabase storage
+const uploadDamageImage = async (file: File) => {
+  try {
+   const {
+     data: { session },
+   } = await supabase.auth.getSession();
+   if (!session) {
+     // Try anonymous sign in if no session exists
+     const anonSession = await signInAnonymously();
+     if (!anonSession) {
+       throw new Error("Authentication failed");
+     }
+   }
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `damage-images/${fileName}`;
 
+    const { error: uploadError, data } = await supabase.storage
+      .from('damages')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('damages')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    throw error;
+  }
+};
   // Update fetchTransactions to include remaining_quantity
   const fetchTransactions = async () => {
     try {
@@ -247,7 +290,10 @@ const processReturn = async () => {
 
   try {
     setIsLoading(true);
-
+let damageImageUrl = null;
+if (damageImage && damagedQuantity > 0) {
+  damageImageUrl = await uploadDamageImage(damageImage);
+}
     const overdueFine = selectedTransaction.return_date
       ? calculateFine(selectedTransaction.return_date)
       : 0;
@@ -267,6 +313,7 @@ if (inventoryFetchError) throw inventoryFetchError;
       .update({
         remaining_quantity: inventoryData.remaining_quantity + goodItems,
         quantity: inventoryData.quantity - damagedQuantity,
+        
         status: "available",
       })
       .eq("id", selectedTransaction.inventory_id);
@@ -280,6 +327,7 @@ if (inventoryFetchError) throw inventoryFetchError;
         status: "returned",
         fine_amount: totalFine,
         damaged_quantity: damagedQuantity,
+        damage_image_url: damageImageUrl,
         return_date:
           selectedTransaction.return_date || new Date().toISOString(),
       })
@@ -593,12 +641,41 @@ if (inventoryFetchError) throw inventoryFetchError;
                 value={damagedQuantity}
                 onChange={(e) => {
                   const val = parseInt(e.target.value);
-                  if (selectedTransaction && val <= selectedTransaction.quantity && val >= 0) {
+                  if (
+                    selectedTransaction &&
+                    val <= selectedTransaction.quantity &&
+                    val >= 0
+                  ) {
                     setDamagedQuantity(val);
                   }
                 }}
               />
             </div>
+            {damagedQuantity > 0 && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="damageImage" className="text-right">
+                  Damage Photo
+                </Label>
+                <div className="col-span-3">
+                  <Input
+                    id="damageImage"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setDamageImage(file);
+                      }
+                    }}
+                  />
+                  {damageImage && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Selected: {damageImage.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="fine" className="text-right">
                 Damage Fine ($)
@@ -608,15 +685,23 @@ if (inventoryFetchError) throw inventoryFetchError;
                 type="number"
                 className="col-span-3"
                 value={damagesFine}
-                onChange={(e) => setDamagesFine(Math.max(0, parseFloat(e.target.value)))}
+                onChange={(e) =>
+                  setDamagesFine(Math.max(0, parseFloat(e.target.value)))
+                }
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDamageDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsDamageDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={processReturn}>
+            <Button
+              onClick={processReturn}
+              disabled={damagedQuantity > 0 && !damageImage}
+            >
               Confirm Return
             </Button>
           </DialogFooter>

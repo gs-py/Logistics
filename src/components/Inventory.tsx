@@ -35,9 +35,11 @@ const AdminInventoryTab = ({currentUser}) => {
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   
   const statusColors = {
-    borrowed: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  
     available: "bg-green-100 text-green-800 border-green-200",
     maintenance: "bg-gray-100 text-gray-800 border-gray-200",
     damaged: "bg-red-100 text-red-800 border-red-200",
@@ -45,7 +47,7 @@ const AdminInventoryTab = ({currentUser}) => {
   };
   
   const statusIcons = {
-    borrowed: "🔄",
+   
     available: "✅",
     maintenance: "🔧",
     damaged: "⚠️",
@@ -74,8 +76,22 @@ const AdminInventoryTab = ({currentUser}) => {
       setIsLoading(true);
       let { data, error } = await supabase.from("inventory").select("*");
       if (error) throw error;
-      setInventory(data || []);
-      setFilteredInventory(data || []);
+      
+      // Check and update status for each item
+      for (const item of data || []) {
+        if (item.quantity <= 0 && item.status !== 'out_of_stock') {
+          await updateStockStatus(item);
+        }
+      }
+      
+      // Fetch updated inventory
+      const { data: updatedData, error: refreshError } = await supabase
+        .from("inventory")
+        .select("*");
+      
+      if (refreshError) throw refreshError;
+      setInventory(updatedData || []);
+      setFilteredInventory(updatedData || []);
     } catch (error) {
       toast.error("Failed to load inventory");
     } finally {
@@ -83,26 +99,24 @@ const AdminInventoryTab = ({currentUser}) => {
     }
   };
 
-  // Add these new states
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
-  
-  // Add this new function for handling updates
-  // Add function to check and update stock status
   const updateStockStatus = async (item: InventoryItem) => {
-    if (item.quantity <= 0 && item.status !== 'out_of_stock') {
+    try {
       const { error } = await supabase
         .from("inventory")
-        .update({ status: 'out_of_stock' })
+        .update({ 
+          status: 'out_of_stock',
+          remaining_quantity: 0 
+        })
         .eq("id", item.id);
       
-      if (!error) {
-        fetchInventory();
-      }
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error("Error updating stock status:", error);
+      return false;
     }
   };
 
-  // Modify the handleUpdate function
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedItem) return;
@@ -114,8 +128,15 @@ const AdminInventoryTab = ({currentUser}) => {
         selectedItem.quantity
       );
   
-      // Set status based on remaining quantity
-      const status = remaining_quantity <= 0 ? 'out_of_stock' : selectedItem.status;
+      // Set status based on quantity
+      let status = selectedItem.status;
+      if (selectedItem.quantity === 0) {
+        status = 'out_of_stock';
+      } else if (remaining_quantity === 0) {
+        status = 'out_of_stock';
+      } else if (status !== 'maintenance' && status !== 'damaged') {
+        status = 'available';
+      }
   
       const { error } = await supabase
         .from("inventory")

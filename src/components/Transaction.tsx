@@ -31,8 +31,12 @@ interface Transaction {
   borrow_date: string;
   return_date: string | null;
   status: "borrowed" | "returned" | "overdue";
-  borrower: { name: string };  // Changed from borrowers array to single borrower
-  inventory: { name: string }; // Changed from inventory array to single item
+  quantity: number;
+  damaged_quantity: number;
+  fine_amount: number;
+  damage_image_url: string | null;
+  borrower: { name: string };
+  inventory: { name: string };
 }
 
 const Transactions = () => {
@@ -70,17 +74,23 @@ const Transactions = () => {
   const fetchTransactions = async () => {
     try {
       setIsLoading(true);
-      let { data, error } = await supabase
-        .from("transactions")
-        .select(`
-          id,
-          borrow_date,
-          return_date,
-          status,
-          borrower:borrowers!transactions_borrower_id_fkey(name),
-          inventory:inventory!transactions_inventory_id_fkey(name)
-        `)
-        .order("borrow_date", { ascending: false });
+     const { data, error } = await supabase
+       .from("transactions")
+       .select(
+         `
+        id,
+        borrow_date,
+        return_date,
+        status,
+        quantity,
+        damaged_quantity,
+        fine_amount,
+        damage_image_url,
+        borrower:borrowers!transactions_borrower_id_fkey(name),
+        inventory:inventory!transactions_inventory_id_fkey(name)
+      `
+       )
+       .order("borrow_date", { ascending: false });
   
       if (error) throw error;
       setTransactions(data || []);
@@ -135,9 +145,9 @@ const Transactions = () => {
             <FileText size={20} />
             Transaction History
           </CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="bg-white/20 text-white hover:bg-white/30 border-white/40"
             onClick={fetchTransactions}
           >
@@ -149,7 +159,10 @@ const Transactions = () => {
       <CardContent className="p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={16}
+            />
             <Input
               placeholder="Search transactions..."
               className="pl-10"
@@ -158,44 +171,58 @@ const Transactions = () => {
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className={`text-xs ${!statusFilter ? 'bg-blue-50 text-blue-700 border-blue-200' : ''}`}
+            <Button
+              variant="outline"
+              size="sm"
+              className={`text-xs ${
+                !statusFilter ? "bg-blue-50 text-blue-700 border-blue-200" : ""
+              }`}
               onClick={() => setStatusFilter(null)}
             >
               All
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className={`text-xs ${statusFilter === 'borrowed' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : ''}`}
-              onClick={() => setStatusFilter('borrowed')}
+            <Button
+              variant="outline"
+              size="sm"
+              className={`text-xs ${
+                statusFilter === "borrowed"
+                  ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                  : ""
+              }`}
+              onClick={() => setStatusFilter("borrowed")}
             >
               <Clock size={14} className="mr-1" />
               Borrowed
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className={`text-xs ${statusFilter === 'returned' ? 'bg-green-50 text-green-700 border-green-200' : ''}`}
-              onClick={() => setStatusFilter('returned')}
+            <Button
+              variant="outline"
+              size="sm"
+              className={`text-xs ${
+                statusFilter === "returned"
+                  ? "bg-green-50 text-green-700 border-green-200"
+                  : ""
+              }`}
+              onClick={() => setStatusFilter("returned")}
             >
               <CheckCircle size={14} className="mr-1" />
               Returned
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className={`text-xs ${statusFilter === 'overdue' ? 'bg-red-50 text-red-700 border-red-200' : ''}`}
-              onClick={() => setStatusFilter('overdue')}
+            <Button
+              variant="outline"
+              size="sm"
+              className={`text-xs ${
+                statusFilter === "overdue"
+                  ? "bg-red-50 text-red-700 border-red-200"
+                  : ""
+              }`}
+              onClick={() => setStatusFilter("overdue")}
             >
               <AlertCircle size={14} className="mr-1" />
               Overdue
             </Button>
           </div>
         </div>
-        
+
         <ScrollArea className="h-[calc(100vh-300px)] w-full rounded-md border">
           <Table>
             <TableHeader>
@@ -205,6 +232,8 @@ const Transactions = () => {
                 <TableHead>Borrow Date</TableHead>
                 <TableHead>Return Date</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Fine</TableHead>
+                <TableHead>Damaged</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -216,7 +245,10 @@ const Transactions = () => {
                 </TableRow>
               ) : filteredTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-gray-500">
+                  <TableCell
+                    colSpan={5}
+                    className="h-24 text-center text-gray-500"
+                  >
                     No transactions found
                   </TableCell>
                 </TableRow>
@@ -226,7 +258,9 @@ const Transactions = () => {
                   return (
                     // Update the table row rendering
                     <TableRow key={tx.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{tx.borrower?.name || "Unknown"}</TableCell>
+                      <TableCell className="font-medium">
+                        {tx.borrower?.name || "Unknown"}
+                      </TableCell>
                       <TableCell>{tx.inventory?.name || "Unknown"}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
@@ -241,10 +275,42 @@ const Transactions = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}
+                        >
                           {statusConfig.icon}
                           <span className="capitalize">{tx.status}</span>
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {tx.fine_amount > 0 ? (
+                          <span className="text-red-600 font-medium">
+                            ${tx.fine_amount.toFixed(2)}
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {tx.damaged_quantity > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-red-600 font-medium">
+                              {tx.damaged_quantity} items
+                            </span>
+                            {tx.damage_image_url && (
+                              <a
+                                href={tx.damage_image_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 text-sm underline"
+                              >
+                                View Photo
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
                     </TableRow>
                   );
