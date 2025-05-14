@@ -50,7 +50,7 @@ export default function Login({ onLogin }: LoginProps) {
               <Shield size={40} className="text-white/90" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold mb-4">Lab Stock Management System</h2>
+              <h2 className="text-3xl font-bold mb-4">laboratory Stock Management System</h2>
               <p className="text-blue-100 text-lg">
                 Streamline your laboratory inventory management with our comprehensive solution
               </p>

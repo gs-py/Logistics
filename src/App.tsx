@@ -178,7 +178,7 @@ const fetchPendingCartRequests = async () => {
               <div className="flex items-center gap-2">
                 <Shield size={24} className="text-white" />
                 <h1 className="text-xl font-bold hidden sm:block">
-                  Lab Stock Management
+                  Laboratory Stock Management System
                 </h1>
               </div>
             </div>
