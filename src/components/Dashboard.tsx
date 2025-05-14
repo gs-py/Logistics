@@ -149,7 +149,7 @@ export default function Dashboard({ userRole }: DashboardProps) {
         <div className="mt-2 sm:mt-0">
           <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
             <Clock size={14} className="mr-1" />
-            Last updated: Today, 10:30 AM
+            Last updated: Today, 10:50 AM
           </span>
         </div>
       </div>
