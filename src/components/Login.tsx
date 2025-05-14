@@ -8,6 +8,9 @@ interface LoginProps {
 const MOCK_USERS = [
   { username: 'admin', password: 'admin123', role: 'admin', name: 'Admin User' },
   { username: 'assistant', password: 'asst123', role: 'assistant', name: 'Lab Assistant' },
+  { username: 'assistant2', password: 'asst123', role: 'assistant', name: 'Lab Assistant 2' },
+
+
 ];
 
 export default function Login({ onLogin }: LoginProps) {
